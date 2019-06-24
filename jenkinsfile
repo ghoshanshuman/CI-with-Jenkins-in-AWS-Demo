@@ -1,0 +1,32 @@
+node('jenkins-slave1') {
+   def mvnHome
+   stage('Preparation') {
+      git poll: true, url: 'https://github.com/ghoshanshuman/CI-with-Jenkins-in-AWS-Demo.git'          
+      mvnHome = tool 'my maven'
+   }
+   stage('Compile') {
+      withEnv(["MVN_HOME=$mvnHome"]) {
+         sh '"$MVN_HOME/bin/mvn" clean compile'
+      }
+   }
+   stage('Build') {
+      // Run the maven build
+      withEnv(["MVN_HOME=$mvnHome"]) {
+         sh '"$MVN_HOME/bin/mvn" clean package'
+      }
+   }
+   stage('SonarQube analysis') {
+       withEnv(["MVN_HOME=$mvnHome"]) {
+           withSonarQubeEnv('mysonar') {
+               sh '"$MVN_HOME/bin/mvn" sonar:sonar'
+               
+           }
+       }
+   } 
+   stage('docker push') {
+      withEnv(["MVN_HOME=$mvnHome"]) {
+         sh 'sudo docker build . -t ghoshanshuman/casestudy:$BUILD_NUMBER'
+         sh 'sudo docker push ghoshanshuman/casestudy:$BUILD_NUMBER'
+      }
+   }
+}
